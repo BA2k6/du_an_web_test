@@ -11,6 +11,7 @@ const userRoutes = require('./routes/userRoutes');
 const stockInRoutes = require('./routes/stockInRoutes');
 const orderRoutes = require('./routes/orderRoutes');   // <-- THÊM DÒNG NÀY
 const salaryRoutes = require('./routes/salaryRoutes'); // <--
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,6 +27,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/stockin', stockInRoutes);
 app.use('/api/orders', orderRoutes);   // <-- THÊM ROUTE
 app.use('/api/salaries', salaryRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 
 app.get('/', (req, res) => res.send(`Store Management API is running on port ${PORT}`));
