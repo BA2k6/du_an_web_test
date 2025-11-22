@@ -1,21 +1,15 @@
 -- ================================================================
 -- CHỈ TẠO CẤU TRÚC BẢNG (SCHEMA + GIỮ DỮ LIỆU)
 -- ================================================================
-
 SET FOREIGN_KEY_CHECKS = 0;
 
--- Xóa database nếu đã tồn tại
 DROP DATABASE IF EXISTS `store_management_db`;
-
--- Tạo lại database mới cùng tên
 CREATE DATABASE `store_management_db` 
-DEFAULT CHARACTER SET utf8mb4 
-COLLATE utf8mb4_unicode_ci;
-
--- Sử dụng database vừa tạo
+  DEFAULT CHARACTER SET utf8mb4 
+  COLLATE utf8mb4_unicode_ci;
 USE `store_management_db`;
 
--- 2. Tạo bảng ROLES nếu chưa có
+-- BẢNG roles
 CREATE TABLE IF NOT EXISTS `roles` (
   `role_id` INT UNSIGNED NOT NULL PRIMARY KEY,
   `role_name` VARCHAR(50) NOT NULL UNIQUE,
@@ -23,7 +17,7 @@ CREATE TABLE IF NOT EXISTS `roles` (
   `description` VARCHAR(255) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 3. Tạo bảng USERS
+-- BẢNG users
 CREATE TABLE IF NOT EXISTS `users` (
   `user_id` VARCHAR(15) NOT NULL PRIMARY KEY,
   `username` VARCHAR(50) NOT NULL UNIQUE,
@@ -34,8 +28,9 @@ CREATE TABLE IF NOT EXISTS `users` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`role_id`) REFERENCES `roles`(`role_id`) ON DELETE RESTRICT
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- BẢNG customers (chỉ tạo 1 lần) - có thể liên kết tới user nếu khách hàng đăng ký
 CREATE TABLE IF NOT EXISTS `customers` (
   `customer_id` VARCHAR(15) NOT NULL PRIMARY KEY,
   `user_id` VARCHAR(15) NULL UNIQUE,
@@ -46,8 +41,10 @@ CREATE TABLE IF NOT EXISTS `customers` (
   `date_of_birth` DATE NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (`user_id`) REFERENCES users(`user_id`) ON DELETE SET NULL
-);
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- BẢNG employees
 CREATE TABLE IF NOT EXISTS `employees` (
   `employee_id` VARCHAR(15) NOT NULL PRIMARY KEY,
   `user_id` VARCHAR(15) NOT NULL UNIQUE,
@@ -61,8 +58,18 @@ CREATE TABLE IF NOT EXISTS `employees` (
   `department` VARCHAR(50) NOT NULL,
   `base_salary` DECIMAL(18,2) NOT NULL,
   `commission_rate` DECIMAL(5,4) NOT NULL DEFAULT 0.0000,
-  FOREIGN KEY (`user_id`) REFERENCES users(`user_id`) ON DELETE CASCADE
-);
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- BẢNG salaries: net_salary là cột GENERATED STORED để tránh sai lệch
+DROP TABLE IF EXISTS `salaries`;
+
+-- TẠO BẢNG MỚI
+DROP TABLE IF EXISTS `salaries`;
+
+-- TẠO BẢNG MỚI
 CREATE TABLE IF NOT EXISTS `salaries` (
   `salary_id` VARCHAR(50) NOT NULL PRIMARY KEY,
   `employee_id` VARCHAR(15) NOT NULL,
@@ -71,23 +78,21 @@ CREATE TABLE IF NOT EXISTS `salaries` (
   `sales_commission` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
   `bonus` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
   `deductions` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
-  `net_salary` DECIMAL(18,2) NOT NULL,
-  `calculated_by_user_id` VARCHAR(15) NOT NULL,
-  `paid_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `net_salary` DECIMAL(18,2) AS (base_salary + sales_commission + bonus - deductions) STORED,
+  `paid_at` DATETIME NULL,
+  `paid_status` ENUM('Paid','Unpaid') NOT NULL DEFAULT 'Unpaid',
   UNIQUE KEY `uk_emp_month` (`employee_id`,`month_year`),
-  FOREIGN KEY (`employee_id`) REFERENCES employees(`employee_id`) ON DELETE CASCADE,
-  FOREIGN KEY (`calculated_by_user_id`) REFERENCES users(`user_id`) ON DELETE RESTRICT
-);
+  FOREIGN KEY (`employee_id`) REFERENCES `employees`(`employee_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-
--- 4. Tạo bảng CATEGORIES
+-- CATEGORIES
 CREATE TABLE IF NOT EXISTS `categories` (
   `category_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `category_name` VARCHAR(100) NOT NULL UNIQUE,
   `description` VARCHAR(255) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 5. Tạo bảng PRODUCTS
+-- PRODUCTS
 CREATE TABLE IF NOT EXISTS `products` (
   `product_id` VARCHAR(20) NOT NULL PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL,
@@ -99,45 +104,35 @@ CREATE TABLE IF NOT EXISTS `products` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`category_id`) REFERENCES `categories`(`category_id`) ON DELETE SET NULL,
-  INDEX idx_category_id (`category_id`)
+  INDEX idx_category_id (`category_id`),
+  CONSTRAINT uq_products_name UNIQUE (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 6. Tạo bảng CUSTOMERS
-CREATE TABLE IF NOT EXISTS `customers` (
-  `customer_id` VARCHAR(15) NOT NULL PRIMARY KEY,
-  `full_name` VARCHAR(100) NOT NULL,
-  `email` VARCHAR(100) NULL,
-  `phone` VARCHAR(20) NOT NULL UNIQUE,
-  `address` VARCHAR(255) NULL,
-  `date_of_birth` DATE NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 7. Tạo bảng ORDERS
--- 7. Tạo bảng ORDERS (phiên bản cải tiến có địa chỉ khách)
+-- ORDERS: thêm thông tin địa chỉ giao hàng / người nhận để phục vụ đơn online
 CREATE TABLE IF NOT EXISTS `orders` (
   `order_id` VARCHAR(20) NOT NULL PRIMARY KEY,
   `customer_id` VARCHAR(15) NULL,
-  `order_date` DATETIME NOT NULL,
+  `order_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `completed_date` DATETIME NULL,
-  `order_type` ENUM('Direct','Online') NOT NULL,
-  `total_amount` DECIMAL(18,2) NOT NULL DEFAULT 0,
-  `shipping_fee` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  `status` ENUM('Pending','Processing','Shipping','Completed','Cancelled') NOT NULL DEFAULT 'Pending',
-  `payment_method` ENUM('Cash','Card','Transfer','COD') NOT NULL,
-  `sales_user_id` VARCHAR(15) NOT NULL,
-  `shipper_user_id` VARCHAR(15) NULL,
+  `order_channel` ENUM('Trực tiếp','Online') NOT NULL,
+  `direct_delivery` BOOLEAN NOT NULL DEFAULT FALSE,
+  `subtotal` DECIMAL(18,2) NOT NULL DEFAULT 0,
+  `shipping_cost` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `final_total` DECIMAL(18,2) NOT NULL DEFAULT 0,
+  `status` ENUM('Đang Xử Lý','Đang Giao','Hoàn Thành','Đã Hủy') NOT NULL DEFAULT 'Đang xử lý',
+  `payment_status` ENUM('Chưa Thanh Toán','Đã Thanh Toán','Đã Hoàn Tiền') NOT NULL DEFAULT 'Chưa Thanh Toán',
+  `payment_method` ENUM('Tiền mặt','Thẻ tín dụng','Chuyển khoản') NOT NULL,
+  `staff_id` VARCHAR(15) NOT NULL,
+  `delivery_staff_id` VARCHAR(15) NULL,
+  `note` TEXT NULL,
   FOREIGN KEY (`customer_id`) REFERENCES `customers`(`customer_id`) ON DELETE SET NULL,
-  FOREIGN KEY (`sales_user_id`) REFERENCES `users`(`user_id`) ON DELETE RESTRICT,
-  FOREIGN KEY (`shipper_user_id`) REFERENCES `users`(`user_id`) ON DELETE SET NULL,
+  FOREIGN KEY (`staff_id`) REFERENCES `users`(`user_id`) ON DELETE RESTRICT,
+  FOREIGN KEY (`delivery_staff_id`) REFERENCES `users`(`user_id`) ON DELETE SET NULL,
   INDEX idx_orders_customer (`customer_id`),
-  INDEX idx_orders_sales (`sales_user_id`),
-  INDEX idx_orders_shipper (`shipper_user_id`)
+  INDEX idx_orders_staff (`staff_id`),
+  INDEX idx_orders_delivery_staff (`delivery_staff_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- 8. Tạo bảng ORDER_DETAILS
+-- ORDER_DETAILS
 CREATE TABLE IF NOT EXISTS `order_details` (
   `order_id` VARCHAR(20) NOT NULL,
   `product_id` VARCHAR(20) NOT NULL,
@@ -149,18 +144,18 @@ CREATE TABLE IF NOT EXISTS `order_details` (
   INDEX idx_od_product (`product_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 9. Tạo bảng STOCK_IN
+-- STOCK_IN
 CREATE TABLE IF NOT EXISTS `stock_in` (
   `stock_in_id` VARCHAR(20) NOT NULL PRIMARY KEY,
   `supplier_name` VARCHAR(100) NOT NULL,
-  `import_date` DATETIME NOT NULL,
+  `import_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `total_cost` DECIMAL(18,2) NOT NULL,
   `user_id` VARCHAR(15) NOT NULL,
   FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE RESTRICT,
   INDEX idx_stock_user (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 10. Tạo bảng STOCK_IN_DETAILS
+-- STOCK_IN_DETAILS
 CREATE TABLE IF NOT EXISTS `stock_in_details` (
   `stock_in_id` VARCHAR(20) NOT NULL,
   `product_id` VARCHAR(20) NOT NULL,
@@ -171,14 +166,9 @@ CREATE TABLE IF NOT EXISTS `stock_in_details` (
   FOREIGN KEY (`product_id`) REFERENCES `products`(`product_id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+SET FOREIGN_KEY_CHECKS = 1;
 
-
-
--- ================================================================
--- DỮ LIỆU MẪU (Roles + Users + Categories)
--- ================================================================
-
--- Roles
+-- Dữ liệu mẫu tối thiểu cho roles
 INSERT IGNORE INTO `roles` (`role_id`, `role_name`, `prefix`, `description`) VALUES
 (1,'Owner','OWNER','Quản lý toàn bộ hệ thống'),
 (2,'Customer','CUS','Khách hàng mua sắm trực tuyến'),
@@ -186,6 +176,7 @@ INSERT IGNORE INTO `roles` (`role_id`, `role_name`, `prefix`, `description`) VAL
 (4,'Sales','SALES','Nhân viên bán hàng trực tiếp'),
 (5,'Online Sales','OS','Nhân viên xử lý đơn hàng online'),
 (6,'Shipper','SHIP','Nhân viên giao hàng');
+
 
 -- Users sample data
 
@@ -227,25 +218,242 @@ INSERT IGNORE INTO `employees`
 (employee_id, user_id, full_name, email, phone, date_of_birth, address, start_date, employee_type, department, base_salary, commission_rate)
 VALUES
 -- Warehouse
-('WH01', 'WH01', 'Phạm Văn Kho 1', 'wh01@store.com', '0901000001', '1990-01-01', 'Hà Nội', '2024-08-01', 'Full-time', 'Warehouse', 8000000, 0.0000),
-('WH02', 'WH02', 'Đỗ Thị Kho 2', 'wh02@store.com', '0901000002', '1991-02-02', 'Hà Nội', '2024-08-01', 'Full-time', 'Warehouse', 8000000, 0.0000),
-('WH03', 'WH03', 'Nguyễn Văn Kho 3', 'wh03@store.com', '0901000003', '1992-03-03', 'Hà Nội', '2024-08-01', 'Full-time', 'Warehouse', 8000000, 0.0000),
+('WH01', 'WH01', 'Phạm Văn Hùng',   'wh01@store.com', '0901000001', '1990-01-01', 'Hà Nội', '2024-08-01', 'Full-time', 'Warehouse', 8000000, 0.0000),
+('WH02', 'WH02', 'Đỗ Thị Lan',      'wh02@store.com', '0901000002', '1991-02-02', 'Hà Nội', '2024-08-01', 'Full-time', 'Warehouse', 8000000, 0.0000),
+('WH03', 'WH03', 'Nguyễn Văn Tuấn','wh03@store.com', '0901000003', '1992-03-03', 'Hà Nội', '2024-08-01', 'Full-time', 'Warehouse', 8000000, 0.0000),
 
 -- Sales
-('SALE1', 'SALE1', 'Lê Thị Sale 1', 'sa01@store.com', '0902000001', '1990-04-01', 'Hà Nội', '2024-08-01', 'Full-time', 'Sales', 7000000, 0.0500),
-('SALE2', 'SALE2', 'Trần Văn Sale 2', 'sa02@store.com', '0902000002', '1991-05-02', 'Hà Nội', '2024-08-01', 'Full-time', 'Sales', 7000000, 0.0500),
-('SALE3', 'SALE3', 'Phạm Thị Sale 3', 'sa03@store.com', '0902000003', '1992-06-03', 'Hà Nội', '2024-08-01', 'Full-time', 'Sales', 7000000, 0.0500),
+('SALE1', 'SALE1', 'Lê Thị Ngọc Anh', 'sa01@store.com', '0902000001', '1990-04-01', 'Hà Nội', '2024-08-01', 'Full-time', 'Sales', 7000000, 0.0500),
+('SALE2', 'SALE2', 'Trần Văn Minh',   'sa02@store.com', '0902000002', '1991-05-02', 'Hà Nội', '2024-08-01', 'Full-time', 'Sales', 7000000, 0.0500),
+('SALE3', 'SALE3', 'Phạm Thị Hương',  'sa03@store.com', '0902000003', '1992-06-03', 'Hà Nội', '2024-08-01', 'Full-time', 'Sales', 7000000, 0.0500),
+
 
 -- Online Sales
-('OS01', 'OS01', 'Nguyễn Văn OS 1', 'os01@store.com', '0903000001', '1990-07-01', 'Hà Nội', '2024-08-01', 'Full-time', 'Online Sales', 7000000, 0.0500),
-('OS02', 'OS02', 'Lê Thị OS 2', 'os02@store.com', '0903000002', '1991-08-02', 'Hà Nội', '2024-08-01', 'Full-time', 'Online Sales', 7000000, 0.0500),
-('OS03', 'OS03', 'Trần Văn OS 3', 'os03@store.com', '0903000003', '1992-09-03', 'Hà Nội', '2024-08-01', 'Full-time', 'Online Sales', 7000000, 0.0500),
+('OS01', 'OS01', 'Nguyễn Văn Dũng', 'os01@store.com', '0903000001', '1990-07-01', 'Hà Nội', '2024-08-01', 'Full-time', 'Online Sales', 7000000, 0.0500),
+('OS02', 'OS02', 'Lê Thị Thu Trang','os02@store.com', '0903000002', '1991-08-02', 'Hà Nội', '2024-08-01', 'Full-time', 'Online Sales', 7000000, 0.0500),
+('OS03', 'OS03', 'Trần Văn Khánh',  'os03@store.com', '0903000003', '1992-09-03', 'Hà Nội', '2024-08-01', 'Full-time', 'Online Sales', 7000000, 0.0500),
+
 
 -- Shipper
-('SHIP01', 'SHIP01', 'Nguyễn Văn Ship 1', 'ship01@store.com', '0904000001', '1990-10-01', 'Hà Nội', '2024-08-01', 'Full-time', 'Shipper', 6000000, 0.0000),
-('SHIP02', 'SHIP02', 'Lê Thị Ship 2', 'ship02@store.com', '0904000002', '1991-11-02', 'Hà Nội', '2024-08-01', 'Full-time', 'Shipper', 6000000, 0.0000),
-('SHIP03', 'SHIP03', 'Trần Văn Ship 3', 'ship03@store.com', '0904000003', '1992-12-03', 'Hà Nội', '2024-08-01', 'Full-time', 'Shipper', 6000000, 0.0000);
+('SHIP01', 'SHIP01', 'Nguyễn Văn Hoàng', 'ship01@store.com', '0904000001', '1990-10-01', 'Hà Nội', '2024-08-01', 'Full-time', 'Shipper', 6000000, 0.0000),
+('SHIP02', 'SHIP02', 'Lê Thị Kim Oanh',  'ship02@store.com', '0904000002', '1991-11-02', 'Hà Nội', '2024-08-01', 'Full-time', 'Shipper', 6000000, 0.0000),
+('SHIP03', 'SHIP03', 'Trần Văn Phúc',    'ship03@store.com', '0904000003', '1992-12-03', 'Hà Nội', '2024-08-01', 'Full-time', 'Shipper', 6000000, 0.0000);
 
+INSERT INTO `salaries` 
+(salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+('SAL-WH01-202411','WH01','2024-11-01',8000000,0,500000,0,'2024-11-30','Paid'),
+('SAL-WH02-202411','WH02','2024-11-01',8000000,0,300000,0,NULL,'Unpaid'),
+('SAL-WH03-202411','WH03','2024-11-01',8000000,0,0,0,NULL,'Unpaid'),
+
+('SAL-SALE1-202411','SALE1','2024-11-01',7000000,350000,200000,0,'2024-11-30','Paid'),
+('SAL-SALE2-202411','SALE2','2024-11-01',7000000,400000,150000,0,NULL,'Unpaid'),
+('SAL-SALE3-202411','SALE3','2024-11-01',7000000,300000,100000,0,NULL,'Unpaid'),
+
+('SAL-OS01-202411','OS01','2024-11-01',7000000,300000,200000,0,'2024-11-30','Paid'),
+('SAL-OS02-202411','OS02','2024-11-01',7000000,250000,150000,0,NULL,'Unpaid'),
+('SAL-OS03-202411','OS03','2024-11-01',7000000,200000,100000,0,NULL,'Unpaid'),
+
+('SAL-SHIP01-202411','SHIP01','2024-11-01',6000000,0,0,0,'2024-11-30','Paid'),
+('SAL-SHIP02-202411','SHIP02','2024-11-01',6000000,0,50000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202411','SHIP03','2024-11-01',6000000,0,0,0,NULL,'Unpaid');
+INSERT INTO `salaries` 
+(salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+-- Warehouse
+('SAL-WH01-202412','WH01','2024-12-01',8000000,0,600000,0,'2024-12-30','Paid'),
+('SAL-WH02-202412','WH02','2024-12-01',8000000,0,400000,0,NULL,'Unpaid'),
+('SAL-WH03-202412','WH03','2024-12-01',8000000,0,0,0,NULL,'Unpaid'),
+
+-- Sales
+('SAL-SALE1-202412','SALE1','2024-12-01',7000000,360000,250000,0,'2024-12-30','Paid'),
+('SAL-SALE2-202412','SALE2','2024-12-01',7000000,420000,200000,0,NULL,'Unpaid'),
+('SAL-SALE3-202412','SALE3','2024-12-01',7000000,310000,150000,0,NULL,'Unpaid'),
+
+-- Online Sales
+('SAL-OS01-202412','OS01','2024-12-01',7000000,320000,250000,0,'2024-12-30','Paid'),
+('SAL-OS02-202412','OS02','2024-12-01',7000000,270000,200000,0,NULL,'Unpaid'),
+('SAL-OS03-202412','OS03','2024-12-01',7000000,220000,150000,0,NULL,'Unpaid'),
+
+-- Shipper
+('SAL-SHIP01-202412','SHIP01','2024-12-01',6000000,0,0,0,'2024-12-30','Paid'),
+('SAL-SHIP02-202412','SHIP02','2024-12-01',6000000,0,60000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202412','SHIP03','2024-12-01',6000000,0,0,0,NULL,'Unpaid');
+-- DỮ LIỆU LƯƠNG NĂM 2025
+
+-- Tháng 01
+INSERT INTO `salaries` (salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+('SAL-WH01-202501','WH01','2025-01-01',8000000,0,500000,0,'2025-01-31','Paid'),
+('SAL-WH02-202501','WH02','2025-01-01',8000000,0,300000,0,NULL,'Unpaid'),
+('SAL-WH03-202501','WH03','2025-01-01',8000000,0,0,0,NULL,'Unpaid'),
+('SAL-SALE1-202501','SALE1','2025-01-01',7000000,350000,200000,0,'2025-01-31','Paid'),
+('SAL-SALE2-202501','SALE2','2025-01-01',7000000,400000,150000,0,NULL,'Unpaid'),
+('SAL-SALE3-202501','SALE3','2025-01-01',7000000,300000,100000,0,NULL,'Unpaid'),
+('SAL-OS01-202501','OS01','2025-01-01',7000000,300000,200000,0,'2025-01-31','Paid'),
+('SAL-OS02-202501','OS02','2025-01-01',7000000,250000,150000,0,NULL,'Unpaid'),
+('SAL-OS03-202501','OS03','2025-01-01',7000000,200000,100000,0,NULL,'Unpaid'),
+('SAL-SHIP01-202501','SHIP01','2025-01-01',6000000,0,0,0,'2025-01-31','Paid'),
+('SAL-SHIP02-202501','SHIP02','2025-01-01',6000000,0,50000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202501','SHIP03','2025-01-01',6000000,0,0,0,NULL,'Unpaid');
+
+-- Tháng 02
+INSERT INTO `salaries` (salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+('SAL-WH01-202502','WH01','2025-02-01',8000000,0,500000,0,'2025-02-28','Paid'),
+('SAL-WH02-202502','WH02','2025-02-01',8000000,0,300000,0,NULL,'Unpaid'),
+('SAL-WH03-202502','WH03','2025-02-01',8000000,0,0,0,NULL,'Unpaid'),
+('SAL-SALE1-202502','SALE1','2025-02-01',7000000,350000,200000,0,'2025-02-28','Paid'),
+('SAL-SALE2-202502','SALE2','2025-02-01',7000000,400000,150000,0,NULL,'Unpaid'),
+('SAL-SALE3-202502','SALE3','2025-02-01',7000000,300000,100000,0,NULL,'Unpaid'),
+('SAL-OS01-202502','OS01','2025-02-01',7000000,300000,200000,0,'2025-02-28','Paid'),
+('SAL-OS02-202502','OS02','2025-02-01',7000000,250000,150000,0,NULL,'Unpaid'),
+('SAL-OS03-202502','OS03','2025-02-01',7000000,200000,100000,0,NULL,'Unpaid'),
+('SAL-SHIP01-202502','SHIP01','2025-02-01',6000000,0,0,0,'2025-02-28','Paid'),
+('SAL-SHIP02-202502','SHIP02','2025-02-01',6000000,0,50000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202502','SHIP03','2025-02-01',6000000,0,0,0,NULL,'Unpaid');
+
+-- Tháng 03
+INSERT INTO `salaries` (salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+('SAL-WH01-202503','WH01','2025-03-01',8000000,0,500000,0,'2025-03-31','Paid'),
+('SAL-WH02-202503','WH02','2025-03-01',8000000,0,300000,0,NULL,'Unpaid'),
+('SAL-WH03-202503','WH03','2025-03-01',8000000,0,0,0,NULL,'Unpaid'),
+('SAL-SALE1-202503','SALE1','2025-03-01',7000000,350000,200000,0,'2025-03-31','Paid'),
+('SAL-SALE2-202503','SALE2','2025-03-01',7000000,400000,150000,0,NULL,'Unpaid'),
+('SAL-SALE3-202503','SALE3','2025-03-01',7000000,300000,100000,0,NULL,'Unpaid'),
+('SAL-OS01-202503','OS01','2025-03-01',7000000,300000,200000,0,'2025-03-31','Paid'),
+('SAL-OS02-202503','OS02','2025-03-01',7000000,250000,150000,0,NULL,'Unpaid'),
+('SAL-OS03-202503','OS03','2025-03-01',7000000,200000,100000,0,NULL,'Unpaid'),
+('SAL-SHIP01-202503','SHIP01','2025-03-01',6000000,0,0,0,'2025-03-31','Paid'),
+('SAL-SHIP02-202503','SHIP02','2025-03-01',6000000,0,50000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202503','SHIP03','2025-03-01',6000000,0,0,0,NULL,'Unpaid');
+
+-- Tháng 04
+INSERT INTO `salaries` (salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+('SAL-WH01-202504','WH01','2025-04-01',8000000,0,500000,0,'2025-04-30','Paid'),
+('SAL-WH02-202504','WH02','2025-04-01',8000000,0,300000,0,NULL,'Unpaid'),
+('SAL-WH03-202504','WH03','2025-04-01',8000000,0,0,0,NULL,'Unpaid'),
+('SAL-SALE1-202504','SALE1','2025-04-01',7000000,350000,200000,0,'2025-04-30','Paid'),
+('SAL-SALE2-202504','SALE2','2025-04-01',7000000,400000,150000,0,NULL,'Unpaid'),
+('SAL-SALE3-202504','SALE3','2025-04-01',7000000,300000,100000,0,NULL,'Unpaid'),
+('SAL-OS01-202504','OS01','2025-04-01',7000000,300000,200000,0,'2025-04-30','Paid'),
+('SAL-OS02-202504','OS02','2025-04-01',7000000,250000,150000,0,NULL,'Unpaid'),
+('SAL-OS03-202504','OS03','2025-04-01',7000000,200000,100000,0,NULL,'Unpaid'),
+('SAL-SHIP01-202504','SHIP01','2025-04-01',6000000,0,0,0,'2025-04-30','Paid'),
+('SAL-SHIP02-202504','SHIP02','2025-04-01',6000000,0,50000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202504','SHIP03','2025-04-01',6000000,0,0,0,NULL,'Unpaid');
+-- Tháng 05/2025
+INSERT INTO `salaries` (salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+('SAL-WH01-202505','WH01','2025-05-01',8000000,0,500000,0,'2025-05-31','Paid'),
+('SAL-WH02-202505','WH02','2025-05-01',8000000,0,300000,0,NULL,'Unpaid'),
+('SAL-WH03-202505','WH03','2025-05-01',8000000,0,0,0,NULL,'Unpaid'),
+('SAL-SALE1-202505','SALE1','2025-05-01',7000000,350000,200000,0,'2025-05-31','Paid'),
+('SAL-SALE2-202505','SALE2','2025-05-01',7000000,400000,150000,0,NULL,'Unpaid'),
+('SAL-SALE3-202505','SALE3','2025-05-01',7000000,300000,100000,0,NULL,'Unpaid'),
+('SAL-OS01-202505','OS01','2025-05-01',7000000,300000,200000,0,'2025-05-31','Paid'),
+('SAL-OS02-202505','OS02','2025-05-01',7000000,250000,150000,0,NULL,'Unpaid'),
+('SAL-OS03-202505','OS03','2025-05-01',7000000,200000,100000,0,NULL,'Unpaid'),
+('SAL-SHIP01-202505','SHIP01','2025-05-01',6000000,0,0,0,'2025-05-31','Paid'),
+('SAL-SHIP02-202505','SHIP02','2025-05-01',6000000,0,50000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202505','SHIP03','2025-05-01',6000000,0,0,0,NULL,'Unpaid');
+
+-- Tháng 06/2025
+INSERT INTO `salaries` (salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+('SAL-WH01-202506','WH01','2025-06-01',8000000,0,500000,0,'2025-06-30','Paid'),
+('SAL-WH02-202506','WH02','2025-06-01',8000000,0,300000,0,NULL,'Unpaid'),
+('SAL-WH03-202506','WH03','2025-06-01',8000000,0,0,0,NULL,'Unpaid'),
+('SAL-SALE1-202506','SALE1','2025-06-01',7000000,350000,200000,0,'2025-06-30','Paid'),
+('SAL-SALE2-202506','SALE2','2025-06-01',7000000,400000,150000,0,NULL,'Unpaid'),
+('SAL-SALE3-202506','SALE3','2025-06-01',7000000,300000,100000,0,NULL,'Unpaid'),
+('SAL-OS01-202506','OS01','2025-06-01',7000000,300000,200000,0,'2025-06-30','Paid'),
+('SAL-OS02-202506','OS02','2025-06-01',7000000,250000,150000,0,NULL,'Unpaid'),
+('SAL-OS03-202506','OS03','2025-06-01',7000000,200000,100000,0,NULL,'Unpaid'),
+('SAL-SHIP01-202506','SHIP01','2025-06-01',6000000,0,0,0,'2025-06-30','Paid'),
+('SAL-SHIP02-202506','SHIP02','2025-06-01',6000000,0,50000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202506','SHIP03','2025-06-01',6000000,0,0,0,NULL,'Unpaid');
+
+-- Tháng 07/2025
+INSERT INTO `salaries` (salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+('SAL-WH01-202507','WH01','2025-07-01',8000000,0,500000,0,'2025-07-31','Paid'),
+('SAL-WH02-202507','WH02','2025-07-01',8000000,0,300000,0,NULL,'Unpaid'),
+('SAL-WH03-202507','WH03','2025-07-01',8000000,0,0,0,NULL,'Unpaid'),
+('SAL-SALE1-202507','SALE1','2025-07-01',7000000,350000,200000,0,'2025-07-31','Paid'),
+('SAL-SALE2-202507','SALE2','2025-07-01',7000000,400000,150000,0,NULL,'Unpaid'),
+('SAL-SALE3-202507','SALE3','2025-07-01',7000000,300000,100000,0,NULL,'Unpaid'),
+('SAL-OS01-202507','OS01','2025-07-01',7000000,300000,200000,0,'2025-07-31','Paid'),
+('SAL-OS02-202507','OS02','2025-07-01',7000000,250000,150000,0,NULL,'Unpaid'),
+('SAL-OS03-202507','OS03','2025-07-01',7000000,200000,100000,0,NULL,'Unpaid'),
+('SAL-SHIP01-202507','SHIP01','2025-07-01',6000000,0,0,0,'2025-07-31','Paid'),
+('SAL-SHIP02-202507','SHIP02','2025-07-01',6000000,0,50000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202507','SHIP03','2025-07-01',6000000,0,0,0,NULL,'Unpaid');
+
+-- Tháng 08/2025
+INSERT INTO `salaries` (salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+('SAL-WH01-202508','WH01','2025-08-01',8000000,0,500000,0,'2025-08-31','Paid'),
+('SAL-WH02-202508','WH02','2025-08-01',8000000,0,300000,0,NULL,'Unpaid'),
+('SAL-WH03-202508','WH03','2025-08-01',8000000,0,0,0,NULL,'Unpaid'),
+('SAL-SALE1-202508','SALE1','2025-08-01',7000000,350000,200000,0,'2025-08-31','Paid'),
+('SAL-SALE2-202508','SALE2','2025-08-01',7000000,400000,150000,0,NULL,'Unpaid'),
+('SAL-SALE3-202508','SALE3','2025-08-01',7000000,300000,100000,0,NULL,'Unpaid'),
+('SAL-OS01-202508','OS01','2025-08-01',7000000,300000,200000,0,'2025-08-31','Paid'),
+('SAL-OS02-202508','OS02','2025-08-01',7000000,250000,150000,0,NULL,'Unpaid'),
+('SAL-OS03-202508','OS03','2025-08-01',7000000,200000,100000,0,NULL,'Unpaid'),
+('SAL-SHIP01-202508','SHIP01','2025-08-01',6000000,0,0,0,'2025-08-31','Paid'),
+('SAL-SHIP02-202508','SHIP02','2025-08-01',6000000,0,50000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202508','SHIP03','2025-08-01',6000000,0,0,0,NULL,'Unpaid');
+
+-- Tháng 09/2025
+INSERT INTO `salaries` (salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+('SAL-WH01-202509','WH01','2025-09-01',8000000,0,500000,0,'2025-09-30','Paid'),
+('SAL-WH02-202509','WH02','2025-09-01',8000000,0,300000,0,NULL,'Unpaid'),
+('SAL-WH03-202509','WH03','2025-09-01',8000000,0,0,0,NULL,'Unpaid'),
+('SAL-SALE1-202509','SALE1','2025-09-01',7000000,350000,200000,0,'2025-09-30','Paid'),
+('SAL-SALE2-202509','SALE2','2025-09-01',7000000,400000,150000,0,NULL,'Unpaid'),
+('SAL-SALE3-202509','SALE3','2025-09-01',7000000,300000,100000,0,NULL,'Unpaid'),
+('SAL-OS01-202509','OS01','2025-09-01',7000000,300000,200000,0,'2025-09-30','Paid'),
+('SAL-OS02-202509','OS02','2025-09-01',7000000,250000,150000,0,NULL,'Unpaid'),
+('SAL-OS03-202509','OS03','2025-09-01',7000000,200000,100000,0,NULL,'Unpaid'),
+('SAL-SHIP01-202509','SHIP01','2025-09-01',6000000,0,0,0,'2025-09-30','Paid'),
+('SAL-SHIP02-202509','SHIP02','2025-09-01',6000000,0,50000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202509','SHIP03','2025-09-01',6000000,0,0,0,NULL,'Unpaid');
+
+-- Tháng 10/2025
+INSERT INTO `salaries` (salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+('SAL-WH01-202510','WH01','2025-10-01',8000000,0,500000,0,'2025-10-31','Paid'),
+('SAL-WH02-202510','WH02','2025-10-01',8000000,0,300000,0,NULL,'Unpaid'),
+('SAL-WH03-202510','WH03','2025-10-01',8000000,0,0,0,NULL,'Unpaid'),
+('SAL-SALE1-202510','SALE1','2025-10-01',7000000,350000,200000,0,'2025-10-31','Paid'),
+('SAL-SALE2-202510','SALE2','2025-10-01',7000000,400000,150000,0,NULL,'Unpaid'),
+('SAL-SALE3-202510','SALE3','2025-10-01',7000000,300000,100000,0,NULL,'Unpaid'),
+('SAL-OS01-202510','OS01','2025-10-01',7000000,300000,200000,0,'2025-10-31','Paid'),
+('SAL-OS02-202510','OS02','2025-10-01',7000000,250000,150000,0,NULL,'Unpaid'),
+('SAL-OS03-202510','OS03','2025-10-01',7000000,200000,100000,0,NULL,'Unpaid'),
+('SAL-SHIP01-202510','SHIP01','2025-10-01',6000000,0,0,0,'2025-10-31','Paid'),
+('SAL-SHIP02-202510','SHIP02','2025-10-01',6000000,0,50000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202510','SHIP03','2025-10-01',6000000,0,0,0,NULL,'Unpaid');
+-- Tháng 11 (tất cả Unpaid)
+INSERT INTO `salaries` (salary_id, employee_id, month_year, base_salary, sales_commission, bonus, deductions, paid_at, paid_status)
+VALUES
+('SAL-WH01-202511','WH01','2025-11-01',8000000,0,500000,0,NULL,'Unpaid'),
+('SAL-WH02-202511','WH02','2025-11-01',8000000,0,300000,0,NULL,'Unpaid'),
+('SAL-WH03-202511','WH03','2025-11-01',8000000,0,0,0,NULL,'Unpaid'),
+('SAL-SALE1-202511','SALE1','2025-11-01',7000000,350000,200000,0,NULL,'Unpaid'),
+('SAL-SALE2-202511','SALE2','2025-11-01',7000000,400000,150000,0,NULL,'Unpaid'),
+('SAL-SALE3-202511','SALE3','2025-11-01',7000000,300000,100000,0,NULL,'Unpaid'),
+('SAL-OS01-202511','OS01','2025-11-01',7000000,300000,200000,0,NULL,'Unpaid'),
+('SAL-OS02-202511','OS02','2025-11-01',7000000,250000,150000,0,NULL,'Unpaid'),
+('SAL-OS03-202511','OS03','2025-11-01',7000000,200000,100000,0,NULL,'Unpaid'),
+('SAL-SHIP01-202511','SHIP01','2025-11-01',6000000,0,0,0,NULL,'Unpaid'),
+('SAL-SHIP02-202511','SHIP02','2025-11-01',6000000,0,50000,0,NULL,'Unpaid'),
+('SAL-SHIP03-202511','SHIP03','2025-11-01',6000000,0,0,0,NULL,'Unpaid');
 -- Categories
 INSERT IGNORE INTO `categories` (`category_name`,`description`) VALUES
 ('Thực phẩm tươi sống','Thịt, cá, hải sản, trứng, gia cầm'),
@@ -681,8 +889,17 @@ VALUES
 ('P0108','Dụng cụ đánh trứng',11,50000,40000,50,TRUE),
 ('P0109','Khuôn bánh',11,80000,60000,40,TRUE),
 ('P0110','Máy xay sinh tố',11,1500000,1200000,10,TRUE),
+('P0181', 'Máy rửa bát' , 11, 20000000,15000000,20,TRUE),
+('P0182','Máy hút bụi mini',11,1200000,950000,25,TRUE),
+('P0183','Ấm siêu tốc',11,350000,280000,40,TRUE),
+('P0184','Nồi chiên không dầu 3L',11,1500000,1200000,15,TRUE),
+('P0185','Bếp điện từ',11,900000,750000,20,TRUE),
+('P0186','Máy lọc nước mini',11,2500000,2100000,10,TRUE),
+('P0187','Bộ nồi inox 5 món',11,2000000,1600000,12,TRUE),
+('P0188','Lò vi sóng 20L',11,1800000,1500000,18,TRUE),
+('P0189','Máy ép trái cây',11,1300000,1050000,20,TRUE),
 
--- Danh mục 12: Thiết bị điện & điện tử nhỏ
+-- Danh mục 12: Thiết bị điện & điện tử 
 ('P0111','Quạt',12,350000,280000,30,TRUE),
 ('P0112','Đèn bàn',12,150000,120000,50,TRUE),
 ('P0113','Ổ cắm điện',12,50000,40000,100,TRUE),
@@ -693,7 +910,17 @@ VALUES
 ('P0118','Máy cạo râu',12,500000,400000,20,TRUE),
 ('P0119','Chuột máy tính',12,250000,200000,50,TRUE),
 ('P0120','Bàn phím',12,400000,300000,40,TRUE),
-
+('P0190','Bộ phát WiFi mini',12,450000,380000,25,TRUE),
+('P0191','Adapter sạc nhanh 20W',12,220000,180000,80,TRUE),
+('P0192','Cáp HDMI 2m',12,90000,70000,100,TRUE),
+('P0193','Loa Bluetooth mini',12,350000,290000,40,TRUE),
+('P0194','Đèn LED cảm ứng',12,180000,140000,60,TRUE),
+('P0195','Bàn ủi mini',12,320000,260000,30,TRUE),
+('P0196','Quạt tích điện mini',12,250000,200000,70,TRUE),
+('P0197','Sạc dự phòng 20.000mAh',12,450000,380000,40,TRUE),
+('P0198','Thiết bị báo khói mini',12,300000,240000,25,TRUE),
+('P0199','Camera mini USB',12,500000,420000,20,TRUE),
+('P0200','Ổ cắm điện thông minh',12,350000,290000,35,TRUE),
 -- Danh mục 13: Văn phòng phẩm
 ('P0121','Sổ tay',13,25000,20000,100,TRUE),
 ('P0122','Bút bi',13,5000,3000,200,TRUE),
@@ -929,150 +1156,166 @@ INSERT INTO customers (customer_id, full_name, phone, address, created_at, updat
 ('CUS116','Trần Văn Tùng','0900000116','122 Bà Triệu, Hà Nội','2025-11-05','2025-11-05'),
 ('CUS117','Lê Thị Hạnh','0900000117','123 Phan Chu Trinh, Hà Nội','2025-11-06','2025-11-06');
 
-INSERT INTO orders (order_id, customer_id, order_date, completed_date, order_type, total_amount, shipping_fee, status, payment_method, sales_user_id, shipper_user_id)
+INSERT INTO orders (order_id, customer_id, order_date, completed_date, order_channel, direct_delivery, subtotal, shipping_cost, final_total, status, payment_status, payment_method, staff_id, delivery_staff_id)
 VALUES
--- Tháng 11/2024 (CUS1 – CUS12)
-('ORD1','CUS1','2024-11-05 10:15:00','2024-11-06 14:20:00','Online',500000,20000,'Completed','COD','SALE01','SHIP01'),
-('ORD2','CUS2','2024-11-07 11:30:00','2024-11-08 16:00:00','Direct',350000,0,'Completed','Cash','SALE02',NULL),
-('ORD3','CUS3','2024-11-10 09:45:00','2024-11-11 12:30:00','Online',420000,15000,'Completed','Card','SALE03','SHIP02'),
-('ORD4','CUS4','2024-11-12 14:00:00',NULL,'Direct',300000,0,'Pending','Cash','SALE01',NULL),
-('ORD5','CUS5','2024-11-15 13:20:00',NULL,'Direct',250000,0,'Processing','Transfer','SALE02',NULL),
-('ORD6','CUS6','2024-11-16 10:30:00','2024-11-17 15:00:00','Online',450000,20000,'Completed','Card','SALE03','SHIP01'),
-('ORD7','CUS7','2024-11-18 11:15:00',NULL,'Direct',320000,0,'Pending','Cash','SALE01',NULL),
-('ORD8','CUS8','2024-11-20 14:20:00','2024-11-21 16:45:00','Online',520000,25000,'Completed','COD','SALE02','SHIP02'),
-('ORD9','CUS9','2024-11-22 09:50:00',NULL,'Direct',280000,0,'Processing','Transfer','SALE03',NULL),
-('ORD10','CUS10','2024-11-24 13:10:00','2024-11-25 14:30:00','Online',600000,30000,'Completed','Card','SALE01','SHIP03'),
-('ORD11','CUS11','2024-11-26 10:00:00',NULL,'Direct',310000,0,'Pending','Cash','SALE02',NULL),
-('ORD12','CUS12','2024-11-28 15:30:00','2024-11-29 16:20:00','Online',480000,20000,'Completed','COD','SALE03','SHIP01'),
+('ORD1','CUS1','2024-11-05 10:15:00','2024-11-06 14:20:00','Online',FALSE,6020000,20000,6040000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE01','SHIP01'),
+('ORD2','CUS2','2024-11-07 11:30:00','2024-11-08 16:00:00','Trực tiếp',TRUE,3050000,0,3050000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD3','CUS3','2024-11-10 09:45:00','2024-11-11 12:30:00','Online',FALSE,420000,15000,435000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS03','SHIP02'),
+('ORD4','CUS4','2024-11-12 14:00:00',NULL,'Trực tiếp',TRUE,3000000,0,3000000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE01',NULL),
+('ORD5','CUS5','2024-11-15 13:20:00',NULL,'Trực tiếp',TRUE,2500000,0,2500000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE02',NULL),
+('ORD6','CUS6','2024-11-16 10:30:00','2024-11-17 15:00:00','Online',FALSE,4500000,20000,4520000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP01'),
+('ORD7','CUS7','2024-11-18 11:15:00',NULL,'Trực tiếp',TRUE,30200000,0,30200000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE01',NULL),
+('ORD8','CUS8','2024-11-20 14:20:00','2024-11-21 16:45:00','Online',FALSE,520000,25000,545000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS02','SHIP02'),
+('ORD9','CUS9','2024-11-22 09:50:00',NULL,'Trực tiếp',TRUE,280000,0,280000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE03',NULL),
+('ORD10','CUS10','2024-11-24 13:10:00','2024-11-25 14:30:00','Online',FALSE,6000000,30000,6030000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP03'),
+('ORD11','CUS11','2024-11-26 10:00:00',NULL,'Trực tiếp',TRUE,3100000,0,3100000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD12','CUS12','2024-11-28 15:30:00','2024-11-29 16:20:00','Online',FALSE,4000000,20000,4020000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS03','SHIP01'),
 
 -- Tháng 12/2024 (CUS13 – CUS21)
-('ORD13','CUS13','2024-12-02 09:15:00','2024-12-03 11:30:00','Online',500000,20000,'Completed','Card','SALE01','SHIP02'),
-('ORD14','CUS14','2024-12-04 10:20:00',NULL,'Direct',350000,0,'Pending','Cash','SALE02',NULL),
-('ORD15','CUS15','2024-12-06 11:45:00','2024-12-07 14:50:00','Online',420000,15000,'Completed','COD','SALE03','SHIP03'),
-('ORD16','CUS16','2024-12-08 14:10:00',NULL,'Direct',300000,0,'Processing','Transfer','SALE01',NULL),
-('ORD17','CUS17','2024-12-10 10:05:00','2024-12-11 13:20:00','Online',460000,20000,'Completed','Card','SALE02','SHIP01'),
-('ORD18','CUS18','2024-12-12 12:30:00',NULL,'Direct',320000,0,'Pending','Cash','SALE03',NULL),
-('ORD19','CUS19','2024-12-14 09:50:00','2024-12-15 11:40:00','Online',510000,25000,'Completed','COD','SALE01','SHIP02'),
-('ORD20','CUS20','2024-12-16 15:10:00',NULL,'Direct',280000,0,'Processing','Transfer','SALE02',NULL),
-('ORD21','CUS21','2024-12-18 11:25:00','2024-12-19 13:30:00','Online',600000,30000,'Completed','Card','SALE03','SHIP03'),
 
--- Tháng 01/2025 (CUS22 – CUS30)
-('ORD22','CUS22','2025-01-03 09:30:00','2025-01-04 12:00:00','Online',500000,20000,'Completed','COD','SALE01','SHIP01'),
-('ORD23','CUS23','2025-01-05 10:45:00',NULL,'Direct',350000,0,'Pending','Cash','SALE02',NULL),
-('ORD24','CUS24','2025-01-07 11:50:00','2025-01-08 14:20:00','Online',420000,15000,'Completed','Card','SALE03','SHIP02'),
-('ORD25','CUS25','2025-01-09 13:10:00',NULL,'Direct',300000,0,'Processing','Transfer','SALE01',NULL),
-('ORD26','CUS26','2025-01-11 10:25:00','2025-01-12 12:50:00','Online',460000,20000,'Completed','COD','SALE02','SHIP03'),
-('ORD27','CUS27','2025-01-13 14:30:00',NULL,'Direct',320000,0,'Pending','Cash','SALE03',NULL),
-('ORD28','CUS28','2025-01-15 09:55:00','2025-01-16 11:40:00','Online',510000,25000,'Completed','Card','SALE01','SHIP01'),
-('ORD29','CUS29','2025-01-17 15:05:00',NULL,'Direct',280000,0,'Processing','Transfer','SALE02',NULL),
-('ORD30','CUS30','2025-01-19 11:20:00','2025-01-20 13:10:00','Online',600000,30000,'Completed','COD','SALE03','SHIP02'),
+('ORD13','CUS13','2024-12-02 09:15:00','2024-12-03 11:30:00','Online',FALSE,5000000,20000,5020000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP02'),
+('ORD14','CUS14','2024-12-04 10:20:00',NULL,'Trực tiếp',TRUE,3500000,0,3500000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD15','CUS15','2024-12-06 11:45:00','2024-12-07 14:50:00','Online',FALSE,420000,15000,435000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS03','SHIP03'),
+('ORD16','CUS16','2024-12-08 14:10:00',NULL,'Trực tiếp',TRUE,300000,0,300000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE01',NULL),
+('ORD17','CUS17','2024-12-10 10:05:00','2024-12-11 13:20:00','Online',FALSE,460000,20000,480000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS02','SHIP01'),
+('ORD18','CUS18','2024-12-12 12:30:00',NULL,'Trực tiếp',TRUE,3200000,0,3200000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD19','CUS19','2024-12-14 09:50:00','2024-12-15 11:40:00','Online',FALSE,510000,25000,535000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE01','SHIP02'),
+('ORD20','CUS20','2024-12-16 15:10:00',NULL,'Trực tiếp',TRUE,28000000,0,28000000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD21','CUS21','2024-12-18 11:25:00','2024-12-19 13:30:00','Online',FALSE,600000,30000,630000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS03','SHIP03'),
+('ORD22','CUS22','2025-01-03 09:30:00','2025-01-04 12:00:00','Online',FALSE,5000000,20000,5020000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS01','SHIP01'),
+('ORD23','CUS23','2025-01-05 10:45:00',NULL,'Trực tiếp',TRUE,35000000,0,35000000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD24','CUS24','2025-01-07 11:50:00','2025-01-08 14:20:00','Online',FALSE,420000,15000,435000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS03','SHIP02'),
+('ORD25','CUS25','2025-01-09 13:10:00',NULL,'Trực tiếp',TRUE,3000000,0,3000000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE01',NULL),
+('ORD26','CUS26','2025-01-11 10:25:00','2025-01-12 12:50:00','Online',FALSE,460000,20000,480000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS02','SHIP03'),
+('ORD27','CUS27','2025-01-13 14:30:00',NULL,'Trực tiếp',TRUE,3200000,0,3200000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD28','CUS28','2025-01-15 09:55:00','2025-01-16 11:40:00','Online',FALSE,510000,25000,535000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP01'),
+('ORD29','CUS29','2025-01-17 15:05:00',NULL,'Trực tiếp',TRUE,2800000,0,2800000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD30','CUS30','2025-01-19 11:20:00','2025-01-20 13:10:00','Online',FALSE,6000000,30000,6030000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS03','SHIP02');
 
 -- Tháng 02/2025 (CUS31 – CUS39)
-('ORD31','CUS31','2025-02-01 09:00:00','2025-02-02 11:30:00','Online',520000,20000,'Completed','Card','SALE01','SHIP01'),
-('ORD32','CUS32','2025-02-03 10:10:00',NULL,'Direct',340000,0,'Pending','Cash','SALE02',NULL),
-('ORD33','CUS33','2025-02-05 11:20:00','2025-02-06 13:50:00','Online',480000,15000,'Completed','COD','SALE03','SHIP02'),
-('ORD34','CUS34','2025-02-07 14:30:00',NULL,'Direct',310000,0,'Processing','Transfer','SALE01',NULL),
-('ORD35','CUS35','2025-02-09 09:45:00','2025-02-10 12:10:00','Online',500000,20000,'Completed','Card','SALE02','SHIP03'),
-('ORD36','CUS36','2025-02-11 12:00:00',NULL,'Direct',330000,0,'Pending','Cash','SALE03',NULL),
-('ORD37','CUS37','2025-02-13 10:15:00','2025-02-14 11:50:00','Online',510000,25000,'Completed','COD','SALE01','SHIP01'),
-('ORD38','CUS38','2025-02-15 13:30:00',NULL,'Direct',290000,0,'Processing','Transfer','SALE02',NULL),
-('ORD39','CUS39','2025-02-17 11:40:00','2025-02-18 14:00:00','Online',600000,30000,'Completed','Card','SALE03','SHIP02'),
+INSERT INTO orders (order_id, customer_id, order_date, completed_date, order_channel, direct_delivery, subtotal, shipping_cost, final_total, status, payment_status, payment_method, staff_id, delivery_staff_id)
+VALUES
+('ORD31','CUS31','2025-02-01 09:00:00','2025-02-02 11:30:00','Online',FALSE,5020000,20000,5040000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP01'),
+('ORD32','CUS32','2025-02-03 10:10:00',NULL,'Trực tiếp',TRUE,34000000,0,34000000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD33','CUS33','2025-02-05 11:20:00','2025-02-06 13:50:00','Online',FALSE,480000,15000,495000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03','SHIP02'),
+('ORD34','CUS34','2025-02-07 14:30:00',NULL,'Trực tiếp',TRUE,310000,0,310000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE01',NULL),
+('ORD35','CUS35','2025-02-09 09:45:00','2025-02-10 12:10:00','Online',FALSE,500000,20000,520000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS02','SHIP03'),
+('ORD36','CUS36','2025-02-11 12:00:00',NULL,'Trực tiếp',TRUE,3300000,0,3300000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD37','CUS37','2025-02-13 10:15:00','2025-02-14 11:50:00','Online',FALSE,510000,25000,535000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS01','SHIP01'),
+('ORD38','CUS38','2025-02-15 13:30:00',NULL,'Trực tiếp',TRUE,2900000,0,2900000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD39','CUS39','2025-02-17 11:40:00','2025-02-18 14:00:00','Online',FALSE,600000,30000,630000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','SALE03','SHIP02'),
+('ORD40','CUS40','2025-03-01 09:20:00','2025-03-02 12:10:00','Online',FALSE,530000,20000,550000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS01','SHIP03'),
+('ORD41','CUS41','2025-03-03 10:35:00',NULL,'Trực tiếp',TRUE,3600000,0,3600000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD42','CUS42','2025-03-05 11:50:00','2025-03-06 13:40:00','Online',FALSE,470000,15000,485000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS03','SHIP01'),
+('ORD43','CUS43','2025-03-07 14:05:00',NULL,'Trực tiếp',TRUE,3200000,0,3200000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE01',NULL),
+('ORD44','CUS44','2025-03-09 10:15:00','2025-03-10 12:50:00','Online',FALSE,500000,20000,520000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS02','SHIP02'),
+('ORD45','CUS45','2025-03-11 12:30:00',NULL,'Trực tiếp',TRUE,3100000,0,3100000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD46','CUS46','2025-03-13 09:45:00','2025-03-14 11:30:00','Online',FALSE,520000,25000,545000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','SALE01','SHIP03'),
+('ORD47','CUS47','2025-03-15 13:00:00',NULL,'Trực tiếp',TRUE,30000000,0,30000000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE02',NULL),
+('ORD48','CUS48','2025-03-17 11:20:00','2025-03-18 13:10:00','Online',FALSE,6010000,30000,6040000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS03','SHIP01'),
 
--- Tháng 03/2025 (CUS40 – CUS48)
-('ORD40','CUS40','2025-03-01 09:20:00','2025-03-02 12:10:00','Online',530000,20000,'Completed','COD','SALE01','SHIP03'),
-('ORD41','CUS41','2025-03-03 10:35:00',NULL,'Direct',360000,0,'Pending','Cash','SALE02',NULL),
-('ORD42','CUS42','2025-03-05 11:50:00','2025-03-06 13:40:00','Online',470000,15000,'Completed','Card','SALE03','SHIP01'),
-('ORD43','CUS43','2025-03-07 14:05:00',NULL,'Direct',320000,0,'Processing','Transfer','SALE01',NULL),
-('ORD44','CUS44','2025-03-09 10:15:00','2025-03-10 12:50:00','Online',500000,20000,'Completed','COD','SALE02','SHIP02'),
-('ORD45','CUS45','2025-03-11 12:30:00',NULL,'Direct',310000,0,'Pending','Cash','SALE03',NULL),
-('ORD46','CUS46','2025-03-13 09:45:00','2025-03-14 11:30:00','Online',520000,25000,'Completed','Card','SALE01','SHIP03'),
-('ORD47','CUS47','2025-03-15 13:00:00',NULL,'Direct',300000,0,'Processing','Transfer','SALE02',NULL),
-('ORD48','CUS48','2025-03-17 11:20:00','2025-03-18 13:10:00','Online',610000,30000,'Completed','COD','SALE03','SHIP01'),
+-- Tháng 04/2025 (CUS49 – CUS57
 
--- Tháng 04/2025 (CUS49 – CUS57)
-('ORD49','CUS49','2025-04-01 09:10:00','2025-04-02 12:00:00','Online',540000,20000,'Completed','Card','SALE01','SHIP02'),
-('ORD50','CUS50','2025-04-03 10:25:00',NULL,'Direct',350000,0,'Pending','Cash','SALE02',NULL),
-('ORD51','CUS51','2025-04-05 11:40:00','2025-04-06 13:50:00','Online',480000,15000,'Completed','COD','SALE03','SHIP03'),
-('ORD52','CUS52','2025-04-07 14:00:00',NULL,'Direct',320000,0,'Processing','Transfer','SALE01',NULL),
-('ORD53','CUS53','2025-04-09 10:10:00','2025-04-10 12:40:00','Online',500000,20000,'Completed','Card','SALE02','SHIP01'),
-('ORD54','CUS54','2025-04-11 12:30:00',NULL,'Direct',310000,0,'Pending','Cash','SALE03',NULL),
-('ORD55','CUS55','2025-04-13 09:50:00','2025-04-14 11:45:00','Online',520000,25000,'Completed','COD','SALE01','SHIP02'),
-('ORD56','CUS56','2025-04-15 13:10:00',NULL,'Direct',300000,0,'Processing','Transfer','SALE02',NULL),
-('ORD57','CUS57','2025-04-17 11:25:00','2025-04-18 13:20:00','Online',610000,30000,'Completed','Card','SALE03','SHIP03'),
-('ORD58','CUS58','2025-05-01 09:15:00','2025-05-02 11:30:00','Online',530000,20000,'Completed','COD','SALE01','SHIP01'),
-('ORD59','CUS59','2025-05-03 10:20:00',NULL,'Direct',360000,0,'Pending','Cash','SALE02',NULL),
-('ORD60','CUS60','2025-05-05 11:45:00','2025-05-06 14:00:00','Online',480000,15000,'Completed','Card','SALE03','SHIP02'),
-('ORD61','CUS61','2025-05-07 14:00:00',NULL,'Direct',320000,0,'Processing','Transfer','SALE01',NULL),
-('ORD62','CUS62','2025-05-09 10:10:00','2025-05-10 12:40:00','Online',500000,20000,'Completed','COD','SALE02','SHIP03'),
-('ORD63','CUS63','2025-05-11 12:30:00',NULL,'Direct',310000,0,'Pending','Cash','SALE03',NULL),
-('ORD64','CUS64','2025-05-13 09:50:00','2025-05-14 11:45:00','Online',520000,25000,'Completed','Card','SALE01','SHIP01'),
-('ORD65','CUS65','2025-05-15 13:10:00',NULL,'Direct',300000,0,'Processing','Transfer','SALE02',NULL),
-('ORD66','CUS66','2025-05-17 11:25:00','2025-05-18 13:20:00','Online',610000,30000,'Completed','COD','SALE03','SHIP02'),
-
--- Tháng 06/2025 (CUS67 – CUS75)
-('ORD67','CUS67','2025-06-01 09:20:00','2025-06-02 12:10:00','Online',530000,20000,'Completed','Card','SALE01','SHIP03'),
-('ORD68','CUS68','2025-06-03 10:35:00',NULL,'Direct',360000,0,'Pending','Cash','SALE02',NULL),
-('ORD69','CUS69','2025-06-05 11:50:00','2025-06-06 13:40:00','Online',470000,15000,'Completed','COD','SALE03','SHIP01'),
-('ORD70','CUS70','2025-06-07 14:05:00',NULL,'Direct',320000,0,'Processing','Transfer','SALE01',NULL),
-('ORD71','CUS71','2025-06-09 10:15:00','2025-06-10 12:50:00','Online',500000,20000,'Completed','Card','SALE02','SHIP02'),
-('ORD72','CUS72','2025-06-11 12:30:00',NULL,'Direct',310000,0,'Pending','Cash','SALE03',NULL),
-('ORD73','CUS73','2025-06-13 09:50:00','2025-06-14 11:45:00','Online',520000,25000,'Completed','COD','SALE01','SHIP03'),
-('ORD74','CUS74','2025-06-15 13:10:00',NULL,'Direct',300000,0,'Processing','Transfer','SALE02',NULL),
-('ORD75','CUS75','2025-06-17 11:25:00','2025-06-18 13:20:00','Online',610000,30000,'Completed','Card','SALE03','SHIP01'),
-
--- Tháng 07/2025 (CUS76 – CUS84)
-('ORD76','CUS76','2025-07-01 09:15:00','2025-07-02 11:30:00','Online',530000,20000,'Completed','COD','SALE01','SHIP02'),
-('ORD77','CUS77','2025-07-03 10:20:00',NULL,'Direct',360000,0,'Pending','Cash','SALE02',NULL),
-('ORD78','CUS78','2025-07-05 11:45:00','2025-07-06 14:00:00','Online',480000,15000,'Completed','Card','SALE03','SHIP03'),
-('ORD79','CUS79','2025-07-07 14:00:00',NULL,'Direct',320000,0,'Processing','Transfer','SALE01',NULL),
-('ORD80','CUS80','2025-07-09 10:10:00','2025-07-10 12:40:00','Online',500000,20000,'Completed','COD','SALE02','SHIP01'),
-('ORD81','CUS81','2025-07-11 12:30:00',NULL,'Direct',310000,0,'Pending','Cash','SALE03',NULL),
-('ORD82','CUS82','2025-07-13 09:50:00','2025-07-14 11:45:00','Online',520000,25000,'Completed','Card','SALE01','SHIP02'),
-('ORD83','CUS83','2025-07-15 13:10:00',NULL,'Direct',300000,0,'Processing','Transfer','SALE02',NULL),
-('ORD84','CUS84','2025-07-17 11:25:00','2025-07-18 13:20:00','Online',610000,30000,'Completed','COD','SALE03','SHIP03'),
-
+('ORD49','CUS49','2025-04-01 09:10:00','2025-04-02 12:00:00','Online',FALSE,5040000,20000,5060000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP02'),
+('ORD50','CUS50','2025-04-03 10:25:00',NULL,'Trực tiếp',TRUE,3500000,0,3500000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD51','CUS51','2025-04-05 11:40:00','2025-04-06 13:50:00','Online',FALSE,4080000,15000,4095000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS03','SHIP03'),
+('ORD52','CUS52','2025-04-07 14:00:00',NULL,'Trực tiếp',TRUE,320000,0,320000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','OS01',NULL),
+('ORD53','CUS53','2025-04-09 10:10:00','2025-04-10 12:40:00','Online',FALSE,5000000,20000,5020000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS02','SHIP01'),
+('ORD54','CUS54','2025-04-11 12:30:00',NULL,'Trực tiếp',TRUE,3100000,0,3100000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD55','CUS55','2025-04-13 09:50:00','2025-04-14 11:45:00','Online',FALSE,5020000,25000,5045000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS01','SHIP02'),
+('ORD56','CUS56','2025-04-15 13:10:00',NULL,'Trực tiếp',TRUE,300000,0,300000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE02',NULL),
+('ORD57','CUS57','2025-04-17 11:25:00','2025-04-18 13:20:00','Online',FALSE,6010000,30000,6040000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS03','SHIP03'),
+('ORD58','CUS58','2025-05-01 09:15:00','2025-05-02 11:30:00','Online',FALSE,530000,20000,550000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS01','SHIP01'),
+('ORD59','CUS59','2025-05-03 10:20:00',NULL,'Trực tiếp',TRUE,360000,0,360000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD60','CUS60','2025-05-05 11:45:00','2025-05-06 14:00:00','Online',FALSE,4080000,15000,4095000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS03','SHIP02'),
+('ORD61','CUS61','2025-05-07 14:00:00',NULL,'Trực tiếp',TRUE,320000,0,320000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE01',NULL),
+('ORD62','CUS62','2025-05-09 10:10:00','2025-05-10 12:40:00','Online',FALSE,5000000,20000,5020000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS02','SHIP03'),
+('ORD63','CUS63','2025-05-11 12:30:00',NULL,'Trực tiếp',TRUE,310000,0,310000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD64','CUS64','2025-05-13 09:50:00','2025-05-14 11:45:00','Online',FALSE,5020000,25000,5045000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP01'),
+('ORD65','CUS65','2025-05-15 13:10:00',NULL,'Trực tiếp',TRUE,3000000,0,3000000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE02',NULL),
+('ORD66','CUS66','2025-05-17 11:25:00','2025-05-18 13:20:00','Online',FALSE,6010000,30000,6040000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS03','SHIP02'),
+('ORD67','CUS67','2025-06-01 09:20:00','2025-06-02 12:10:00','Online',FALSE,530000,20000,550000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP03'),
+('ORD68','CUS68','2025-06-03 10:35:00',NULL,'Trực tiếp',TRUE,3600000,0,3600000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD69','CUS69','2025-06-05 11:50:00','2025-06-06 13:40:00','Online',FALSE,4070000,15000,4085000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03','SHIP01'),
+('ORD70','CUS70','2025-06-07 14:05:00',NULL,'Trực tiếp',TRUE,3200000,0,3200000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE01',NULL),
+('ORD71','CUS71','2025-06-09 10:15:00','2025-06-10 12:50:00','Online',FALSE,5000000,20000,5020000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS02','SHIP02'),
+('ORD72','CUS72','2025-06-11 12:30:00',NULL,'Trực tiếp',TRUE,3100000,0,3100000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD73','CUS73','2025-06-13 09:50:00','2025-06-14 11:45:00','Online',FALSE,5200000,25000,5045000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS01','SHIP03'),
+('ORD74','CUS74','2025-06-15 13:10:00',NULL,'Trực tiếp',TRUE,3000000,0,3000000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE02',NULL),
+('ORD75','CUS75','2025-06-17 11:25:00','2025-06-18 13:20:00','Online',FALSE,6010000,30000,6040000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS03','SHIP01'),
+('ORD76','CUS76','2025-07-01 09:15:00','2025-07-02 11:30:00','Online',FALSE,5030000,20000,5050000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS01','SHIP02'),
+('ORD77','CUS77','2025-07-03 10:20:00',NULL,'Trực tiếp',TRUE,360000,0,360000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD78','CUS78','2025-07-05 11:45:00','2025-07-06 14:00:00','Online',FALSE,4800000,15000,48015000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS03','SHIP03'),
+('ORD79','CUS79','2025-07-07 14:00:00',NULL,'Trực tiếp',TRUE,3200000,0,3200000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE01',NULL),
+('ORD80','CUS80','2025-07-09 10:10:00','2025-07-10 12:40:00','Online',FALSE,500000,20000,520000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS02','SHIP01');
+INSERT INTO orders (order_id, customer_id, order_date, completed_date, order_channel, direct_delivery, subtotal, shipping_cost, final_total, status, payment_status, payment_method, staff_id, delivery_staff_id)
+VALUES
+('ORD81','CUS81','2025-07-11 12:30:00',NULL,'Trực tiếp',TRUE,310000,0,310000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD82','CUS82','2025-07-13 09:50:00','2025-07-14 11:45:00','Online',FALSE,520000,25000,545000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP02'),
+('ORD83','CUS83','2025-07-15 13:10:00',NULL,'Trực tiếp',TRUE,300000,0,300000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE02',NULL),
+('ORD84','CUS84','2025-07-17 11:25:00','2025-07-18 13:20:00','Online',FALSE,610000,30000,640000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS03','SHIP03'),
+('ORD85','CUS85','2025-07-18 09:20:00','2025-07-20 12:10:00','Online',FALSE,530000,20000,550000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP01'),
+('ORD86','CUS86','2025-07-19 10:35:00',NULL,'Trực tiếp',TRUE,360000,0,360000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD87','CUS87','2025-07-29 11:50:00','2025-07-30 13:40:00','Online',FALSE,470000,15000,485000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS03','SHIP02'),
+('ORD88','CUS88','2025-07-30 14:05:00',NULL,'Trực tiếp',TRUE,320000,0,320000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE01',NULL),
+('ORD89','CUS89','2025-07-30 10:15:00','2025-07-31 12:50:00','Online',FALSE,500000,20000,520000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS02','SHIP03'),
+('ORD90','CUS90','2025-07-31 12:30:00',NULL,'Trực tiếp',TRUE,310000,0,310000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL);
 -- Tháng 08/2025 (CUS85 – CUS93)
-('ORD85','CUS85','2025-08-01 09:20:00','2025-08-02 12:10:00','Online',530000,20000,'Completed','Card','SALE01','SHIP01'),
-('ORD86','CUS86','2025-08-03 10:35:00',NULL,'Direct',360000,0,'Pending','Cash','SALE02',NULL),
-('ORD87','CUS87','2025-08-05 11:50:00','2025-08-06 13:40:00','Online',470000,15000,'Completed','COD','SALE03','SHIP02'),
-('ORD88','CUS88','2025-08-07 14:05:00',NULL,'Direct',320000,0,'Processing','Transfer','SALE01',NULL),
-('ORD89','CUS89','2025-08-09 10:15:00','2025-08-10 12:50:00','Online',500000,20000,'Completed','Card','SALE02','SHIP03'),
-('ORD90','CUS90','2025-08-11 12:30:00',NULL,'Direct',310000,0,'Pending','Cash','SALE03',NULL),
-('ORD91','CUS91','2025-08-13 09:50:00','2025-08-14 11:45:00','Online',520000,25000,'Completed','COD','SALE01','SHIP01'),
-('ORD92','CUS92','2025-08-15 13:10:00',NULL,'Direct',300000,0,'Processing','Transfer','SALE02',NULL),
-('ORD93','CUS93','2025-08-17 11:25:00','2025-08-18 13:20:00','Online',610000,30000,'Completed','Card','SALE03','SHIP02'),
+INSERT INTO orders (order_id, customer_id, order_date, completed_date, order_channel, direct_delivery, subtotal, shipping_cost, final_total, status, payment_status, payment_method, staff_id, delivery_staff_id)
+VALUES
+('ORD91','CUS91','2025-08-13 09:50:00','2025-08-14 11:45:00','Online',FALSE,520000,25000,545000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS01','SHIP01'),
+('ORD92','CUS92','2025-08-15 13:10:00',NULL,'Trực tiếp',TRUE,30000000,0,30000000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE02',NULL),
+('ORD93','CUS93','2025-08-17 11:25:00','2025-08-18 13:20:00','Online',FALSE,610000,30000,640000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS03','SHIP02'),
+('ORD94','CUS94','2025-09-01 09:15:00','2025-09-02 11:30:00','Online',FALSE,530000,20000,550000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS01','SHIP03'),
+('ORD95','CUS95','2025-09-03 10:20:00',NULL,'Trực tiếp',TRUE,360000,0,360000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD96','CUS96','2025-09-05 11:45:00','2025-09-06 14:00:00','Online',FALSE,480000,15000,495000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS03','SHIP01'),
+('ORD97','CUS97','2025-09-07 14:00:00',NULL,'Trực tiếp',TRUE,320000,0,320000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE01',NULL),
+('ORD98','CUS98','2025-09-09 10:10:00','2025-09-10 12:40:00','Online',FALSE,500000,20000,520000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS02','SHIP02'),
+('ORD99','CUS99','2025-09-11 12:30:00',NULL,'Trực tiếp',TRUE,310000,0,310000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD100','CUS100','2025-09-13 09:50:00','2025-09-14 11:45:00','Online',FALSE,520000,25000,545000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP03'),
+('ORD101','CUS101','2025-09-15 13:10:00',NULL,'Trực tiếp',TRUE,30000000,0,30000000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE02',NULL),
+('ORD102','CUS102','2025-09-17 11:25:00','2025-09-18 13:20:00','Online',FALSE,610000,30000,640000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS03','SHIP01'),
 
--- Tháng 09/2025 (CUS94 – CUS102)
-('ORD94','CUS94','2025-09-01 09:15:00','2025-09-02 11:30:00','Online',530000,20000,'Completed','COD','SALE01','SHIP03'),
-('ORD95','CUS95','2025-09-03 10:20:00',NULL,'Direct',360000,0,'Pending','Cash','SALE02',NULL),
-('ORD96','CUS96','2025-09-05 11:45:00','2025-09-06 14:00:00','Online',480000,15000,'Completed','Card','SALE03','SHIP01'),
-('ORD97','CUS97','2025-09-07 14:00:00',NULL,'Direct',320000,0,'Processing','Transfer','SALE01',NULL),
-('ORD98','CUS98','2025-09-09 10:10:00','2025-09-10 12:40:00','Online',500000,20000,'Completed','COD','SALE02','SHIP02'),
-('ORD99','CUS99','2025-09-11 12:30:00',NULL,'Direct',310000,0,'Pending','Cash','SALE03',NULL),
-('ORD100','CUS100','2025-09-13 09:50:00','2025-09-14 11:45:00','Online',520000,25000,'Completed','Card','SALE01','SHIP03'),
-('ORD101','CUS101','2025-09-15 13:10:00',NULL,'Direct',300000,0,'Processing','Transfer','SALE02',NULL),
-('ORD102','CUS102','2025-09-17 11:25:00','2025-09-18 13:20:00','Online',610000,30000,'Completed','COD','SALE03','SHIP01'),
 
 -- Tháng 10/2025 (CUS103 – CUS111)
-('ORD103','CUS103','2025-10-01 09:20:00','2025-10-02 12:10:00','Online',530000,20000,'Completed','Card','SALE01','SHIP02'),
-('ORD104','CUS104','2025-10-03 10:35:00',NULL,'Direct',360000,0,'Pending','Cash','SALE02',NULL),
-('ORD105','CUS105','2025-10-05 11:50:00','2025-10-06 13:40:00','Online',470000,15000,'Completed','COD','SALE03','SHIP03'),
-('ORD106','CUS106','2025-10-07 14:05:00',NULL,'Direct',320000,0,'Processing','Transfer','SALE01',NULL),
-('ORD107','CUS107','2025-10-09 10:15:00','2025-10-10 12:50:00','Online',500000,20000,'Completed','Card','SALE02','SHIP01'),
-('ORD108','CUS108','2025-10-11 12:30:00',NULL,'Direct',310000,0,'Pending','Cash','SALE03',NULL),
-('ORD109','CUS109','2025-10-13 09:50:00','2025-10-14 11:45:00','Online',520000,25000,'Completed','COD','SALE01','SHIP02'),
-('ORD110','CUS110','2025-10-15 13:10:00',NULL,'Direct',300000,0,'Processing','Transfer','SALE02',NULL),
-('ORD111','CUS111','2025-10-17 11:25:00','2025-10-18 13:20:00','Online',610000,30000,'Completed','Card','SALE03','SHIP03'),
 
--- Tháng 11/2025 (CUS112 – CUS117)
-('ORD112','CUS112','2025-11-01 09:15:00','2025-11-02 11:30:00','Online',530000,20000,'Completed','COD','SALE01','SHIP01'),
-('ORD113','CUS113','2025-11-03 10:20:00',NULL,'Direct',360000,0,'Pending','Cash','SALE02',NULL),
-('ORD114','CUS114','2025-11-05 11:45:00','2025-11-06 14:00:00','Online',480000,15000,'Completed','Card','SALE03','SHIP02'),
-('ORD115','CUS115','2025-11-07 14:00:00',NULL,'Direct',320000,0,'Processing','Transfer','SALE01',NULL),
-('ORD116','CUS116','2025-11-09 10:10:00','2025-11-10 12:40:00','Online',500000,20000,'Completed','COD','SALE02','SHIP03'),
-('ORD117','CUS117','2025-11-11 12:30:00',NULL,'Direct',310000,0,'Pending','Cash','SALE03',NULL);
+('ORD103','CUS103','2025-10-01 09:20:00','2025-10-02 12:10:00','Online',FALSE,530000,20000,550000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP02'),
+('ORD104','CUS104','2025-10-03 10:35:00',NULL,'Trực tiếp',TRUE,360000,0,360000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD105','CUS105','2025-10-05 11:50:00','2025-10-06 13:40:00','Online',FALSE,470000,15000,485000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS03','SHIP03'),
+('ORD106','CUS106','2025-10-07 14:05:00',NULL,'Trực tiếp',TRUE,320000,0,320000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE01',NULL),
+('ORD107','CUS107','2025-10-09 10:15:00','2025-10-10 12:50:00','Online',FALSE,500000,20000,520000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS02','SHIP01'),
+('ORD108','CUS108','2025-10-11 12:30:00',NULL,'Trực tiếp',TRUE,310000,0,310000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD109','CUS109','2025-10-13 09:50:00','2025-10-14 11:45:00','Online',FALSE,520000,25000,545000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS01','SHIP02'),
+('ORD110','CUS110','2025-10-15 13:10:00',NULL,'Trực tiếp',TRUE,300000,0,300000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE02',NULL),
+('ORD111','CUS111','2025-10-17 11:25:00','2025-10-18 13:20:00','Online',FALSE,610000,30000,640000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS03','SHIP03'),
+('ORD112','CUS112','2025-10-21 09:15:00','2025-10-22 11:30:00','Online',FALSE,530000,20000,550000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS01','SHIP01'),
+('ORD113','CUS113','2025-10-23 10:20:00',NULL,'Trực tiếp',TRUE,36000000,0,36000000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD114','CUS114','2025-10-25 11:45:00','2025-10-26 14:00:00','Online',FALSE,480000,15000,495000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS03','SHIP02'),
+('ORD115','CUS115','2025-10-27 14:00:00',NULL,'Trực tiếp',TRUE,320000,0,320000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE01',NULL);
+-- tháng 11/2025
+INSERT INTO `orders` 
+(order_id, customer_id, order_date, completed_date, order_channel, direct_delivery, subtotal, shipping_cost, final_total, status, payment_status, payment_method, staff_id, delivery_staff_id)
+VALUES
+-- Đơn tháng 11/2025
+('ORD116','CUS116','2025-11-15 09:30:00',NULL,'Online',FALSE,500000,20000,520000,'Đang Giao','Chưa Thanh Toán','Tiền mặt','OS02','SHIP01'),
+('ORD117','CUS117','2025-11-16 10:10:00','2025-11-16 10:10:00','Trực tiếp',TRUE,450000,0,450000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD118','CUS101','2025-11-17 12:20:00','2025-11-18 13:45:00','Online',FALSE,600000,25000,625000,'Hoàn Thành','Đã Thanh Toán','Thẻ tín dụng','OS01','SHIP02'),
+('ORD119','CUS102','2025-11-18 09:50:00','2025-11-18 09:50:00','Trực tiếp',TRUE,30000000,0,30000000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE01',NULL),
+('ORD120','CUS103','2025-11-19 11:15:00',NULL,'Online',FALSE,520000,20000,540000,'Đang Xử Lý','Chưa Thanh Toán','Tiền mặt','OS03','SHIP03'),
+('ORD121','CUS104','2025-11-20 10:30:00','2025-11-20 10:30:00','Trực tiếp',TRUE,370000,0,370000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE02',NULL),
+('ORD122','CUS105','2025-11-21 14:10:00','2025-11-22 12:50:00','Online',FALSE,550000,15000,565000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','OS02','SHIP01'),
+('ORD123','CUS106','2025-11-22 09:05:00','2025-11-22 09:05:00','Trực tiếp',TRUE,31000000,0,31000000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD124','CUS107','2025-11-23 13:25:00',NULL,'Online',FALSE,480000,20000,500000,'Đang Giao','Chưa Thanh Toán','Thẻ tín dụng','OS01','SHIP02'),
+('ORD125','CUS108','2025-11-24 10:45:00','2025-11-24 10:45:00','Trực tiếp',TRUE,40000000,0,40000000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE01',NULL),
+('ORD126','CUS109','2025-11-25 11:55:00','2025-11-26 13:30:00','Online',FALSE,6000000,25000,6025000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','OS03','SHIP03'),
+('ORD127','CUS110','2025-11-26 09:40:00','2025-11-26 09:40:00','Trực tiếp',TRUE,350000,0,350000,'Hoàn Thành','Đã Thanh Toán','Chuyển khoản','SALE02',NULL),
+('ORD128','CUS111','2025-11-27 10:50:00',NULL,'Online',FALSE,500000,20000,520000,'Đang Xử Lý','Chưa Thanh Toán','Tiền mặt','OS01','SHIP01'),
+('ORD129','CUS112','2025-11-28 12:30:00','2025-11-28 12:30:00','Trực tiếp',TRUE,450000,0,450000,'Hoàn Thành','Đã Thanh Toán','Tiền mặt','SALE03',NULL),
+('ORD130','CUS113','2025-11-29 09:15:00',NULL,'Online',FALSE,520000,20000,540000,'Đang Giao','Chưa Thanh Toán','Thẻ tín dụng','OS02','SHIP02');
+
 INSERT INTO order_details (order_id, product_id, quantity, price_at_order) VALUES
 ('ORD1','P0148',2,55887),
+('ORD1','P0001',2,120000),
 ('ORD1','P0177',5,113425),
 ('ORD1','P0112',4,65627),
 ('ORD2','P0038',1,89650),
@@ -1531,17 +1774,54 @@ INSERT INTO order_details (order_id, product_id, quantity, price_at_order) VALUE
 ('ORD115','P0091',4,131068),
 ('ORD115','P0139',4,171701),
 ('ORD115','P0120',1,87525),
-('ORD116','P0140',1,55024),
-('ORD116','P0156',1,154663),
-('ORD116','P0139',1,96422),
+('ORD115','P0140',1,55024),
+('ORD115','P0156',1,154663),
+('ORD115','P0160',1,96422),
 ('ORD116','P0028',1,81088),
 ('ORD116','P0094',1,101760),
-('ORD117','P0022',1,104351),
-('ORD117','P0046',1,137854),
-('ORD117','P0061',2,170510),
-('ORD117','P0167',2,64306);
+('ORD116','P0022',1,104351),
+('ORD116','P0046',1,137854),
+('ORD116','P0061',2,170510),
+('ORD116','P0167',2,64306),
+-- ORD117
+('ORD117','P0011',1,150000),
+-- ORD118
+('ORD118','P0010',2,1200000),
+('ORD118','P0009',1,80000),
+-- ORD119
+('ORD119','P0001',1,100000),
+-- ORD120
+('ORD120','P0003',2,120000),
+('ORD120','P0012',1,120000),
+-- ORD121
+('ORD121','P0006',1,60000),
+-- ORD122
+('ORD122','P0014',2,80000),
+('ORD122','P0015',1,20000),
+-- ORD123
+('ORD123','P0016',1,100000),
+-- ORD124
+('ORD124','P0017',2,700000),
+('ORD124','P0018',1,500000),
+-- ORD125
+('ORD125','P0004',1,15000),
+-- ORD126
+('ORD126','P0008',2,50000),
+('ORD126','P0009',1,80000),
+-- ORD127
+('ORD127','P0011',1,150000),
+-- ORD128
+('ORD128','P0012',2,120000),
+('ORD128','P0013',1,150000),
+-- ORD129
+('ORD129','P0002',1,300000),
+-- ORD130
+('ORD130','P0005',2,15000),
+('ORD130','P0006',1,60000);
 -- Bật lại kiểm tra khóa ngoại
 -- 1. Thêm cột full_name vào bảng users
+SET SQL_SAFE_UPDATES = 0;
+
 ALTER TABLE `users` 
 ADD COLUMN `full_name` VARCHAR(100) NULL AFTER `role_id`;
 
@@ -1551,6 +1831,7 @@ ADD COLUMN `full_name` VARCHAR(100) NULL AFTER `role_id`;
 UPDATE `users` 
 SET `full_name` = `username` 
 WHERE `full_name` IS NULL;
+SET SQL_SAFE_UPDATES = 1;
 SET FOREIGN_KEY_CHECKS = 1;
 
 

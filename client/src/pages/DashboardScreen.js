@@ -175,10 +175,10 @@ export const DashboardScreen = () => {
             
             {/* Chi tiết chi phí */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-4 rounded-xl shadow-lg text-sm">
-                <p className="text-gray-700"><strong>Tổng Doanh thu (Tháng {currentMonthLabel}):</strong> <span className="text-blue-600 font-bold">{formatCurrency(stats.totalRevenue)}</span></p>
-                
-</div>
-
+                <p className="text-gray-700"><strong>Tổng Doanh thu:</strong> <span className="text-blue-600 font-bold">{formatCurrency(stats.totalRevenue)}</span></p>
+                <p className="text-gray-700"><strong>Giá vốn (COGS):</strong> <span className="text-red-500">{formatCurrency(stats.totalCOGS)}</span></p>
+                <p className="text-gray-700"><strong>Tổng Lương:</strong> <span className="text-red-500">{formatCurrency(stats.totalSalariesPaid)}</span></p>
+            </div>
             {/* KHỐI BIỂU ĐỒ CHÍNH VÀ LỊCH SỬ HOẠT ĐỘNG */}
             {/* VỊ TRÍ CHỌN NĂM MỚI: Đặt ở đây (trước phần nội dung biểu đồ) */}
             <div className="flex items-center space-x-3 mt-4">

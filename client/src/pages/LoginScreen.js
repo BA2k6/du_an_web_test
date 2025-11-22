@@ -35,19 +35,19 @@ export const LoginScreen = ({ setPath, setUser, setIsLoggedIn }) => {
             setUser(fullUser);
             setIsLoggedIn(true);
 
+            // CHUYỂN HƯỚNG NGAY LẬP TỨC
             if (user.mustChangePassword) {
                 setPath('/reset-password'); 
-            } else if (user.roleName === 'Customer') {
-                // KHÁCH HÀNG -> Vào trang Shop
+            } else if (user.roleName === 'Customer' || user.roleName === ROLES.CUSTOMER.name) { // Kiểm tra cả string 'Customer' và hằng số
                 setPath('/shop');
-            } else if (user.roleName === 'Owner') {
-                // ADMIN -> Vào Dashboard
+            } else if (user.roleName === ROLES.OWNER.name) {
                 setPath('/dashboard');
             } else {
-                // NHÂN VIÊN KHÁC -> Vào trang sản phẩm quản lý
-                setPath('/products');
+                // Chuyển hướng đến trang đầu tiên trong menu của họ
+                // Cần đảm bảo roleToRoutes có định nghĩa cho role này
+                const defaultPath = roleToRoutes[user.roleName]?.[0]?.path || '/products';
+                setPath(defaultPath);
             }
-
 
         } catch (err) {
             setError(err.message || 'Lỗi đăng nhập không xác định.');

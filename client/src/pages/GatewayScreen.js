@@ -39,7 +39,7 @@ export const GatewayScreen = ({ setPath }) => {
                     {/* NÚT 1: KHÁM PHÁ CỬA HÀNG (Dành cho Khách hàng) */}
                     {/* Nút này nổi bật hơn (Màu trắng) */}
                     <button
-                        onClick={() => alert("Tính năng Giao diện Khách hàng đang được phát triển!")} // Sau này setPath('/shop')
+                        onClick={() => setPath('/shop')} // Sau này setPath('/shop')
                         className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-indigo-700 bg-white rounded-full shadow-xl transition-all duration-300 hover:bg-indigo-50 hover:scale-105 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-white/50 w-full sm:w-auto"
                     >
                         <ShoppingBag className="w-6 h-6 mr-2 text-pink-500 group-hover:rotate-12 transition-transform" />
@@ -53,7 +53,7 @@ export const GatewayScreen = ({ setPath }) => {
                         className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white border-2 border-white/30 bg-white/10 backdrop-blur-sm rounded-full shadow-lg transition-all duration-300 hover:bg-white/20 hover:scale-105 hover:border-white/60 focus:outline-none focus:ring-4 focus:ring-white/30 w-full sm:w-auto"
                     >
                         <LogIn className="w-6 h-6 mr-2 group-hover:translate-x-1 transition-transform" />
-                        Đăng nhập Quản lý
+                        Đăng nhập/ Đăng ký
                     </button>
 
                 </div>
