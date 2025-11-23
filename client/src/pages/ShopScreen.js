@@ -1,7 +1,5 @@
-// /client/src/pages/ShopScreen.js (BẢN CẬP NHẬT HEADER THEO TRẠNG THÁI)
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingCart, Search, Filter, LogIn, LogOut, User, Star, ArrowLeft, History } from 'lucide-react'; // Thêm icon History
+import { ShoppingCart, Search, Filter, LogIn, LogOut, User, Star, ArrowLeft, History, Key } from 'lucide-react'; // Thêm icon Key
 import { getProducts, getCategories } from '../services/api';
 import { formatCurrency, normalizeSearchableValue } from '../utils/helpers';
 
@@ -104,14 +102,27 @@ export const ShopScreen = ({ setPath, isLoggedIn, currentUser, onLogout }) => {
                                 </button>
 
                                 {/* Thông tin User & Logout */}
-                                <div className="flex items-center space-x-3 pl-3 border-l border-gray-200">
-                                    <div className="hidden sm:flex flex-col items-end">
+                                <div className="flex items-center space-x-2 pl-3 border-l border-gray-200">
+                                    <div className="hidden sm:flex flex-col items-end mr-2">
                                         <span className="text-sm font-bold text-gray-800">Xin chào, {currentUser?.fullName}</span>
                                         <span className="text-xs text-green-600 font-medium">Thành viên</span>
                                     </div>
+                                    
+                                    {/* Icon User */}
                                     <div className="h-9 w-9 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 shadow-sm">
                                         <User className="w-5 h-5" />
                                     </div>
+
+                                    {/* Nút Đổi Mật Khẩu (MỚI) */}
+                                    <button 
+                                        onClick={() => setPath('/change-password')}
+                                        title="Đổi mật khẩu"
+                                        className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-full transition"
+                                    >
+                                        <Key className="w-5 h-5" />
+                                    </button>
+
+                                    {/* Nút Đăng xuất */}
                                     <button 
                                         onClick={onLogout}
                                         title="Đăng xuất"
@@ -138,7 +149,7 @@ export const ShopScreen = ({ setPath, isLoggedIn, currentUser, onLogout }) => {
             {/* --- BODY (Giữ nguyên phần hiển thị sản phẩm) --- */}
             <div className="max-w-7xl mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
                 
-                {/* SIDEBAR DANH MỤC (Code cũ giữ nguyên) */}
+                {/* SIDEBAR DANH MỤC */}
                 <aside className="w-full md:w-64 flex-shrink-0">
                     <div className="bg-white p-4 rounded-xl shadow-sm sticky top-20">
                         <h3 className="font-bold text-gray-800 mb-3 flex items-center">
@@ -153,7 +164,7 @@ export const ShopScreen = ({ setPath, isLoggedIn, currentUser, onLogout }) => {
                             {categories.map(cat => (
                                 <li key={cat.category_id}>
                                     <button onClick={() => setSelectedCategory(cat.category_id)} className={`w-full text-left px-3 py-2 rounded-md transition ${selectedCategory === cat.category_id ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}>
-                                        {cat.category_name}
+                                            {cat.category_name}
                                     </button>
                                 </li>
                             ))}
@@ -161,7 +172,7 @@ export const ShopScreen = ({ setPath, isLoggedIn, currentUser, onLogout }) => {
                     </div>
                 </aside>
 
-                {/* GRID SẢN PHẨM (Code cũ giữ nguyên) */}
+                {/* GRID SẢN PHẨM */}
                 <main className="flex-1">
                     <h2 className="text-xl font-bold text-gray-800 mb-4">
                         {selectedCategory === 'All' ? 'Sản phẩm nổi bật' : categories.find(c => c.category_id === selectedCategory)?.category_name}
@@ -185,7 +196,7 @@ export const ShopScreen = ({ setPath, isLoggedIn, currentUser, onLogout }) => {
                                         <div className="text-xs text-indigo-500 font-semibold mb-1 uppercase tracking-wide">{product.categoryName || 'Sản phẩm'}</div>
                                         <h3 className="text-gray-900 font-medium text-base line-clamp-2 mb-2 flex-grow" title={product.name}>{product.name}</h3>
                                         <div className="flex items-center mb-3">
-                                             <span className="text-xs text-yellow-500 flex"><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/></span> <span className="text-xs text-gray-400 ml-1">(5.0)</span>
+                                                <span className="text-xs text-yellow-500 flex"><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/><Star className="w-3 h-3 fill-current"/></span> <span className="text-xs text-gray-400 ml-1">(5.0)</span>
                                         </div>
                                         <div className="mt-auto flex items-center justify-between">
                                             <span className="text-lg font-bold text-red-600">{formatCurrency(product.price)}</span>
