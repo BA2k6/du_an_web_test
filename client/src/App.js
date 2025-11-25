@@ -20,14 +20,11 @@ import { ResetPasswordScreen } from './pages/ResetPasswordScreen';
 import { ShopScreen } from './pages/ShopScreen';
 import { PublicShopScreen } from './pages/PublicShopScreen'; 
 
-// Component Chứa Nội dung chính (CHỈ CÒN CÁC TRANG CẦN MENU)
+// Component Chứa Nội dung chính (CHỈ CÒN CÁC TRANG CẦN MENU ADMIN)
 const AppContent = ({ path, setPath, currentUser, userRoleName }) => {
     
-    // Kiểm tra quyền truy cập
     const isAuthorized = useMemo(() => {
-        // Các trang công khai hoặc riêng lẻ không cần check ở đây vì đã được App xử lý trước
         if (path === '/shop' || path === '/publicshop' || path === '/login' || path === '/' || path === '/change-password') return true;
-        
         if (userRoleName === ROLES.OWNER.name) return true;
         
         const allowedRoutes = roleToRoutes[userRoleName];
@@ -40,6 +37,7 @@ const AppContent = ({ path, setPath, currentUser, userRoleName }) => {
     }, [path, userRoleName]);
 
     useEffect(() => {
+        // Nếu là Customer thì chỉ cho ở Shop hoặc đổi mật khẩu
         if (userRoleName === 'Customer' && path !== '/shop' && path !== '/change-password') {
             setPath('/shop'); return;
         }
@@ -48,7 +46,6 @@ const AppContent = ({ path, setPath, currentUser, userRoleName }) => {
         }
     }, [isAuthorized, userRoleName, path, setPath]);
 
-    // Render các trang nội dung bên trong Dashboard
     switch (path) {
         case '/dashboard': return <DashboardScreen />;
         case '/products': return <ProductsScreen userRoleName={userRoleName} />;
@@ -57,8 +54,6 @@ const AppContent = ({ path, setPath, currentUser, userRoleName }) => {
         case '/stockin': return <StockInScreen userRoleName={userRoleName} />;
         case '/users': return <UsersScreen currentUser={currentUser} />;
         case '/salaries': return <SalariesScreen userRoleName={userRoleName} />;
-        
-        // LƯU Ý: '/change-password' ĐÃ ĐƯỢC XỬ LÝ Ở NGOÀI, KHÔNG CẦN Ở ĐÂY NỮA
         
         case '/unauthorized': return <UnauthorizedScreen setPath={setPath} />;
         default: return null;
@@ -72,16 +67,14 @@ export default function App() {
     const [path, setPath] = useState('/'); 
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-    // --- LOGIC: TỰ ĐỘNG ĐĂNG XUẤT KHI F5 HOẶC CHẠY LẠI APP ---
+    // --- LOGIC: TỰ ĐỘNG ĐĂNG XUẤT KHI CHẠY LẠI ---
     useEffect(() => {
         console.log("App Started: Cleaning session...");
-        localStorage.clear(); // Xóa sạch session cũ
-        
+        localStorage.clear(); 
         setIsLoggedIn(false);
         setUserRoleName(null);
         setCurrentUser(null);
         setPath('/'); 
-        
         setIsCheckingAuth(false);
     }, []); 
 
@@ -108,11 +101,6 @@ export default function App() {
 
     if (isCheckingAuth) return <div className="flex h-screen items-center justify-center">Đang tải hệ thống...</div>;
 
-    // =================================================================
-    // CÁC TRANG HIỂN THỊ ĐỘC LẬP (KHÔNG CÓ SIDEBAR/HEADER)
-    // PHẢI ĐẶT RETURN Ở ĐÂY ĐỂ NGĂN KHÔNG CHẠY XUỐNG DƯỚI
-    // =================================================================
-
     // 1. Gateway
     if (path === '/') return <GatewayScreen setPath={setPath} />;
 
@@ -128,35 +116,34 @@ export default function App() {
     // 3. Public Shop
     if (path === '/publicshop') return <PublicShopScreen setPath={setPath} />;
 
-    // 4. Shop cho Customer
-    if (path === '/shop' && isLoggedIn && userRoleName === 'Customer') {
-        return <ShopScreen setPath={setPath} isLoggedIn={isLoggedIn} currentUser={currentUser} onLogout={handleLogout} />;
+    // 4. Shop (SỬA LẠI ĐỂ CHO PHÉP KHÁCH VÃNG LAI)
+    // Logic mới: Nếu path là /shop VÀ (Chưa đăng nhập HOẶC là Customer) thì cho vào
+    if (path === '/shop') {
+        if (!isLoggedIn || userRoleName === 'Customer') {
+            return <ShopScreen setPath={setPath} isLoggedIn={isLoggedIn} currentUser={currentUser} onLogout={handleLogout} />;
+        }
     }
 
-    // 5. Kiểm tra đăng nhập
+    // 5. Kiểm tra đăng nhập (Chặn các trang còn lại nếu chưa login)
     if (!isLoggedIn) { setPath('/'); return null; }
 
-    // 6. Reset Password (Bắt buộc đổi lần đầu)
+    // 6. Reset Password
     if (currentUser && currentUser.mustChangePassword && path !== '/reset-password') {
          setPath('/reset-password');
          return <ResetPasswordScreen currentUser={currentUser} setPath={setPath} />;
     }
     
-    // --- QUAN TRỌNG: TRANG ĐỔI MẬT KHẨU CHỦ ĐỘNG ---
-    // Return ngay tại đây để nó chiếm toàn màn hình, không bị dính Sidebar
+    // 7. Đổi mật khẩu chủ động (Full màn hình)
     if (path === '/change-password') {
         return <ChangePasswordScreen currentUser={currentUser} setPath={setPath} />;
     }
     
-    // Trang Reset Password (gọi trực tiếp)
+    // 8. Reset Password (Direct link)
     if (path === '/reset-password') {
         return <ResetPasswordScreen currentUser={currentUser} setPath={setPath} />;
     }
 
-    // =================================================================
-    // 7. GIAO DIỆN QUẢN TRỊ (CÓ MENU & HEADER)
-    // CHỈ CHẠY XUỐNG ĐÂY NẾU KHÔNG PHẢI CÁC TRANG TRÊN
-    // =================================================================
+    // 9. GIAO DIỆN QUẢN TRỊ (CÓ MENU & HEADER)
     return (
         <div className="flex min-h-screen bg-gray-100 font-sans">
             <Sidebar currentPath={path} setPath={setPath} userRoleName={userRoleName} />
